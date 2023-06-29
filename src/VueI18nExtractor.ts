@@ -1,7 +1,5 @@
 import * as fs from 'fs'
 import * as path from 'path'
-import { parse, SFCBlock } from '@vue/compiler-sfc'
-import * as vueTemplateCompiler from 'vue-template-compiler'
 
 class VueI18nExtractor {
   private vueFiles: string[]
@@ -24,53 +22,25 @@ class VueI18nExtractor {
   private getVueFiles(directory: string): string[] {
     let vueFiles: string[] = []
     const files = fs.readdirSync(directory)
+    const extNameList = ['.vue', '.html', '.js', '.jsx', '.ts', '.tsx', '.ejs']
     files.forEach(file => {
       const fullPath = path.join(directory, file)
       const fileStat = fs.lstatSync(fullPath)
       if (fileStat.isDirectory()) {
         vueFiles = vueFiles.concat(this.getVueFiles(fullPath))
-      } else if (path.extname(fullPath) === '.vue') {
+      } else if (extNameList.includes(path.extname(fullPath))) {
         vueFiles.push(fullPath)
       }
     })
     return vueFiles
   }
   private extractI18nKeysFromContent(content: string): void {
-    let sfc: any
-    try {
-      sfc = parse(content)
-    } catch (error) {
-      sfc = vueTemplateCompiler.parseComponent(content)
-    }
-
-    const scriptBlock = sfc.descriptor.script || sfc.descriptor.scriptSetup
-    if (scriptBlock) {
-      this.extractI18nKeysFromScriptBlock(scriptBlock)
-    }
-
-    const templateBlock = sfc.descriptor.template
-    if (templateBlock) {
-      this.extractI18nKeysFromTemplateBlock(templateBlock)
-    }
-  }
-
-  private extractI18nKeysFromScriptBlock(scriptBlock: SFCBlock): void {
-    const scriptContent = scriptBlock.content
+    // this pattern thanks for i18n-ally!
+    // https://github.com/lokalise/i18n-ally/blob/main/src/frameworks/vue.ts#L33C4-L33C4
     const i18nKeyPattern =
       /(?:i18n(?:-\w+)?[ (\n]\s*(?:key)?path=|v-t=['"`{]|(?:this\.|\$|i18n\.|[^\w\d])(?:t|tc|te)\()\s*['"`](.*?)['"`]/gm
     let match
-    while ((match = i18nKeyPattern.exec(scriptContent)) !== null) {
-      // console.log(match[1])
-      this.keySet.add(match[1])
-    }
-  }
-
-  private extractI18nKeysFromTemplateBlock(templateBlock: SFCBlock): void {
-    const templateContent = templateBlock.content
-    const i18nKeyPattern =
-      /(?:i18n(?:-\w+)?[ (\n]\s*(?:key)?path=|v-t=['"`{]|(?:this\.|\$|i18n\.|[^\w\d])(?:t|tc|te)\()\s*['"`](.*?)['"`]/gm
-    let match
-    while ((match = i18nKeyPattern.exec(templateContent)) !== null) {
+    while ((match = i18nKeyPattern.exec(content)) !== null) {
       // console.log(match[1])
       this.keySet.add(match[1])
     }
